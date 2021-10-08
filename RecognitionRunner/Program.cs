@@ -1,61 +1,68 @@
 ﻿using Primitives;
+using Primitives.Logging;
 using ProcessingUtils;
 using RecognitionEngine;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace RecognitionRunner
 {
 	internal class Program
 	{
-		static void Main(string[] args)
+		static async Task Main(string[] args)
 		{
-			var p = new Program();
-			p.Run();
+			var logger = new ConsoleLogger();
+
+			try
+			{
+				var p = new Program();
+				await p.Run(logger);
+			}
+			catch (Exception ex)
+			{
+				await logger.LogException("Failed to process pipeline", ex);
+			}
 		}
 
-		private void Run()
+		private async Task Run(ILogger logger)
 		{
-			Console.WriteLine("Starting test...");
+			await logger.LogInfo("Starting test...");
 
-			Console.WriteLine("Loading models...");
-			var modelLoader = new ModelLoader();
-			var modelSet = modelLoader.LoadModelsFromDisk("models");
-			var faceProcessor = new FaceProcessor(modelSet);
-			var indexProcessor = new IndexProcessor();
-			Console.WriteLine("Loaded models");
+			await logger.LogInfo("Loading models...");
+			var modelLoader = new ModelFromDiskLoader();
+			var modelSet = ModelSetFactory.CreateModels(modelLoader, "models");
+			await logger.LogInfo("Loaded models");
 
-			Console.WriteLine("Loading images...");
+			await logger.LogInfo("Creating recognition entities...");
+			var faceProcessor = new FaceProcessor(logger, modelSet);
+			var indexComparer = FaceIndexComparerFactory.CreateFromIndexType(modelSet.FaceIndexer.IndexType);
+			var indexProcessor = new IndexProcessor(logger, indexComparer);
+			await logger.LogInfo("Created recognition entities");
 
+			await logger.LogInfo("Loading test images...");
 			var imageFolder = "images";
-
 			var image1Path = Path.Combine(imageFolder, "1_0.png");
 			var image2Path = Path.Combine(imageFolder, "1_1.png");
-
 			(var image1, var image2) = LoadImages(image1Path, image2Path);
+			await logger.LogInfo("Loaded test images");
 
-			Console.WriteLine("Loaded images");
-
-			Console.WriteLine("Extracting face data...");
-
+			await logger.LogInfo("Extracting face data...");
 			var image1Faces = faceProcessor.GetFaces(image1);
 			var image2Faces = faceProcessor.GetFaces(image2);
+			await logger.LogInfo("Extracted face data");
 
-			Console.WriteLine("Extracted face data");
-
-			Console.WriteLine("Comparing face data...");
-
+			await logger.LogInfo("Comparing face data...");
 			var similarity = indexProcessor.MatchOneToOne(image1Faces[0].FaceIndex, image2Faces[0].FaceIndex);
-			Console.WriteLine($"Similarity between faces = {similarity}");
-
-			Console.WriteLine("Compared face data");
+			await logger.LogInfo($"Similarity between faces = {similarity}");
+			await logger.LogInfo("Compared face data");
 
 			if (similarity > 0.7)
-				Console.WriteLine("Face match found!");
+				await logger.LogInfo("Face match found!");
 			else
-				Console.WriteLine("Match not found");
+				await logger.LogInfo("Match not found");
 
-			Console.WriteLine("Test finished");
+			await logger.LogInfo("Test finished");
 		}
 
 		private static (ImageData image1, ImageData image2) LoadImages(string image1Path, string image2Path)

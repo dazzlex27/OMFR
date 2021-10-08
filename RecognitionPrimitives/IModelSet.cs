@@ -12,10 +12,10 @@ namespace RecognitionPrimitives
 
 		IFaceNormalizer FaceNormalizer { get; }
 
+		IFaceIndexer FaceIndexer { get; }
+
 		IGenderAgeClassifier GenderAgeClassifier { get; }
 
 		IMaskClassifier MaskClassifier { get; }
-
-		IFaceIndexer FaceIndexer { get; }
 	}
 }
