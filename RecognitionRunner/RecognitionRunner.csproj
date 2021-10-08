@@ -12,4 +12,11 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Primitives\Primitives.csproj" />
+    <ProjectReference Include="..\ProcessingUtils\ProcessingUtils.csproj" />
+    <ProjectReference Include="..\RecognitionEngine\RecognitionEngine.csproj" />
+    <ProjectReference Include="..\RecognitionPrimitives\RecognitionPrimitives.csproj" />
+  </ItemGroup>
+
 </Project>
