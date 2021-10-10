@@ -1,7 +1,8 @@
 /!!bin
 .vs/
 .idea/
-/*/bin/
-/*/obj/
+*/bin/
+*/obj/
 Tests/*/obj/
 *.user
+packages
