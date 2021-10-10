@@ -92,14 +92,9 @@ def scale_image(img, input_size):
         return det_img, det_scale
 
 def detect(model_path, image, threshold):
-    fmc = 3
-    use_kps = True
+    input_size = tuple(image.shape[0:2][::-1])
     input_mean = 127.5
     input_std = 128.0
-    num_anchors = 2
-    feat_stride_fpn = [8, 16, 32]
-
-    input_size = tuple(image.shape[0:2][::-1])
     blob = cv2.dnn.blobFromImage(image, 1.0/input_std, input_size, (input_mean, input_mean, input_mean), swapRB=True)
 
     session = onnxruntime.InferenceSession(model_path)
@@ -120,6 +115,11 @@ def detect(model_path, image, threshold):
     bboxes_list = []
     kpss_list = []
     center_cache = {}
+
+    fmc = 3
+    use_kps = True
+    num_anchors = 2
+    feat_stride_fpn = [8, 16, 32]
 
     for index, stride in enumerate(feat_stride_fpn):
         scores = net_outs[index]
