@@ -94,9 +94,17 @@
   <ItemGroup>
     <ClCompile Include="inference.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="RetinaFaceDetector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CvInclude.h" />
+    <ClInclude Include="OrtUtils.h" />
+    <ClInclude Include="RetinaFaceDetector.h" />
+    <ClInclude Include="Structs.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
