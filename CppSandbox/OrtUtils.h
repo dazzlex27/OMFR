@@ -22,7 +22,7 @@ Ort::Session CreateSession(Ort::Env& env, const std::string modelPath)
 	// removals) ORT_ENABLE_EXTENDED -> To enable extended optimizations
 	// (Includes level 1 + more complex optimizations like node fusions)
 	// ORT_ENABLE_ALL -> To Enable All possible optimizations
-	sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
+	sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
 	std::wstring modelFilepathW = StringToWstring(modelPath, modelPath.size());
 
