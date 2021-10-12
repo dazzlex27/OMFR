@@ -19,12 +19,13 @@ RetinaFaceDetector::RetinaFaceDetector(Ort::Env& env, const std::string& modelFi
 std::vector<Face> RetinaFaceDetector::Detect(const cv::Mat& image, const float detectionThreshold, const float overlapThreshold)
 {
 	float scaleFactor;
-	const cv::Mat& preparedImage = PrepareImage(image, &scaleFactor);
+	const cv::Mat& preparedImage = PrepareImage(image, &scaleFactor); // 4-dim float
 
 	const std::vector<std::vector<float>>& outputTensorValues = RunNet(preparedImage);
 	const FaceDetectionResult& result = GetResultFromTensorOutput(outputTensorValues, detectionThreshold, scaleFactor);
+	const std::vector<Face>& faces = ConvertOutput(result, overlapThreshold);
 
-	return ConvertOutput(result, overlapThreshold);
+	return faces;
 }
 
 cv::Mat RetinaFaceDetector::PrepareImage(const cv::Mat& image, float* scaleFactor)
@@ -55,17 +56,16 @@ cv::Mat RetinaFaceDetector::PrepareImage(const cv::Mat& image, float* scaleFacto
 	cv::Rect roi(cv::Point(0, 0), resizedImage.size());
 	resizedImage.copyTo(paddedImage(roi));
 
-	return paddedImage;
-}
-
-std::vector<std::vector<float>> RetinaFaceDetector::RunNet(const cv::Mat& image)
-{
-	// prepare image (HWC to CHW)
+	// HWC to CHW
 	const float inputStdNorm = 1 / 128.0f;
 	const float inputMean = 127.5f;
 	const cv::Scalar meanNorm(inputMean, inputMean, inputMean);
-	const cv::Mat& preprocessedImage = cv::dnn::blobFromImage(image, inputStdNorm, _inputSize, meanNorm, true);
 
+	return cv::dnn::blobFromImage(paddedImage, inputStdNorm, _inputSize, meanNorm, true);
+}
+
+std::vector<std::vector<float>> RetinaFaceDetector::RunNet(const cv::Mat& floatImage)
+{
 	Ort::AllocatorWithDefaultOptions allocator;
 
 	// prepare inputs
@@ -75,16 +75,14 @@ std::vector<std::vector<float>> RetinaFaceDetector::RunNet(const cv::Mat& image)
 	Ort::TypeInfo inputTypeInfo = _session.GetInputTypeInfo(0);
 	auto inputTensorInfo = inputTypeInfo.GetTensorTypeAndShapeInfo();
 	ONNXTensorElementDataType inputType = inputTensorInfo.GetElementType();
-	std::vector<int64_t> inputDims = { 1, image.channels(), _inputSize.width, _inputSize.height };
+	std::vector<int64_t> inputDims = { 1, _inputDepth, _inputSize.width, _inputSize.height };
 	size_t inputTensorSize = VectorProduct(inputDims);
-	std::vector<float> inputTensorValues(inputTensorSize);
-	inputTensorValues.assign(preprocessedImage.begin<float>(), preprocessedImage.end<float>());
 
 	Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
+	const auto dataPointer = (float*)(floatImage.data);
 
 	std::vector<Ort::Value> inputTensors;
-	inputTensors.emplace_back(Ort::Value::CreateTensor<float>(memoryInfo, inputTensorValues.data(),
-		inputTensorValues.size(), inputDims.data(), inputDims.size()));
+	inputTensors.emplace_back(Ort::Value::CreateTensor<float>(memoryInfo, dataPointer, inputTensorSize, inputDims.data(), inputDims.size()));
 
 	// prepare outputs
 	size_t numOutputNodes = _session.GetOutputCount();
