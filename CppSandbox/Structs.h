@@ -9,14 +9,14 @@ struct FaceDetectionResult
 {
 	std::vector<float> scores;
 	std::vector<cv::Rect2f> boxes;
-	std::vector<Keypoints> keypoints;
+	std::vector<Landmarks> landmarks;
 };
 
 struct Face
 {
 	cv::Rect2f box;
 	float score;
-	Keypoints keypoints;
+	Landmarks landmarks;
 };
 
 struct AnchorKey

@@ -35,10 +35,10 @@ inline void DrawFaces(cv::Mat& image, const std::vector<Face>& faces)
 	for (Face face : faces)
 	{
 		cv::rectangle(image, face.box, cv::Scalar(0, 0, 255), 2);
-		for (int i = 0; i < face.keypoints.size(); i++)
+		for (int i = 0; i < face.landmarks.size(); i++)
 		{
 			cv::Scalar color = i == 0 || i == 1 ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
-			cv::circle(image, face.keypoints[i], 1, color, 2);
+			cv::circle(image, face.landmarks[i], 1, color, 2);
 		}
 	}
 }
