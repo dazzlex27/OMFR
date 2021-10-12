@@ -1,4 +1,14 @@
-# %% Utils
+import cv2
+import onnxruntime
+import numpy as np
+import os
+
+class Face(object):
+
+    def __init__(self, box, kps, confidence):
+        self.box = box
+        self.kps = kps
+        self.confidence = confidence
 
 def distance2bbox(points, distance, max_shape=None):
     """Decode distance prediction to bounding box.
@@ -67,14 +77,11 @@ def apply_nms(dets, thresh = 0.4):
         inter = w * h
         ovr = inter / (areas[i] + areas[order[1:]] - inter)
         inds = np.where(ovr <= thresh)[0]
-        order = order[inds + 1]
+        inc_inds = inds + 1
+        new_order = order[inc_inds]
+        order = new_order
     return keep
 
-## %% Detection
-
-import cv2
-import onnxruntime
-import numpy as np
 
 def scale_image(img, input_size):
         im_ratio = float(img.shape[0]) / img.shape[1]
@@ -123,23 +130,21 @@ def detect(model_path, image, threshold):
 
     for index, stride in enumerate(feat_stride_fpn):
         scores = net_outs[index]
-        bbox_preds = net_outs[index+fmc]
-        bbox_preds = bbox_preds * stride
+        bbox_preds = net_outs[index+fmc] * stride
         if use_kps:
             kps_preds = net_outs[index+fmc*2] * stride
         height = input_height // stride
         width = input_width // stride
-        K = height * width
         key = (height, width, stride)
         if key in center_cache:
             anchor_centers = center_cache[key]
         else:
             #solution-1, c style:
-            #anchor_centers = np.zeros( (height, width, 2), dtype=np.float32 )
-            #for i in range(height):
-            #    anchor_centers[i, :, 1] = i
-            #for i in range(width):
-            #    anchor_centers[:, i, 0] = i
+            anchor_centers = np.zeros( (height, width, 2), dtype=np.float32 )
+            for i in range(height):
+                anchor_centers[i, :, 1] = i
+            for i in range(width):
+                anchor_centers[:, i, 0] = i
 
             #solution-2:
             #ax = np.arange(width, dtype=np.float32)
@@ -148,10 +153,11 @@ def detect(model_path, image, threshold):
             #anchor_centers = np.stack([xv, yv], axis=-1).astype(np.float32)
 
             #solution-3:
-            anchor_centers = np.stack(np.mgrid[:height, :width][::-1], axis=-1).astype(np.float32)
+            #anchor_centers = np.stack(np.mgrid[:height, :width][::-1], axis=-1).astype(np.float32)
             #print(anchor_centers.shape)
 
-            anchor_centers = (anchor_centers * stride).reshape( (-1, 2) )
+            anchor_centers = (anchor_centers * stride)
+            anchor_centers = anchor_centers.reshape( (-1, 2) )
             if num_anchors>1:
                 anchor_centers = np.stack([anchor_centers]*num_anchors, axis=1).reshape( (-1,2) )
             if len(center_cache)<100:
@@ -190,15 +196,6 @@ def parse_output(detection_scale, scores_list, bboxes_list, kpss_list):
 
     return detections, keypoints
 
-## %% Create faces
-
-class Face(object):
-
-    def __init__(self, box, kps, confidence):
-        self.box = box
-        self.kps = kps
-        self.confidence = confidence
-
 def create_face_data(img, boxes, kpss):
     faces = []
     for i in range(boxes.shape[0]):
@@ -222,8 +219,6 @@ def create_face_data(img, boxes, kpss):
 
     return faces
     
-## %% Drawing
-
 def draw_faces(image, faces):
     for i in range(len(faces)):
         face = faces[i]
@@ -249,10 +244,6 @@ def save_result(image, faces, img_path):
 
     cv2.imwrite(f'{new_file_name}{extension}', copy_image)
 
-## %% Main
-
-import os
-
 def detect_faces_in_image(image_path, nn_path, nn_input_size):
     image = cv2.imread(image_path)
 
@@ -266,9 +257,6 @@ def detect_faces_in_image(image_path, nn_path, nn_input_size):
     save_result(image, faces, image_path)
 
     return faces
-
-    
-## %% Run
 
 image_folder_path = '../images'
 nn_path = "det_10g.onnx"
@@ -289,4 +277,3 @@ for file in image_files:
 
 print()
 print('done')
-# %%
