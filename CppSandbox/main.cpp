@@ -6,6 +6,9 @@
 #include <filesystem>
 #include "RetinaFaceDetector.h"
 
+void RetinaFacePerformanceTest(const cv::Mat& image, RetinaFaceDetector& detector, const float detectionThreshold,
+	const float overlapThreshold, const std::string& inputFilename);
+
 int main(int argc, char* argv[])
 {
 	if (argc < 2)
@@ -29,6 +32,22 @@ int main(int argc, char* argv[])
 
 	std::vector<Face> faces = detector.Detect(image, detectionThreshold, overlapThreshold);
 
+	RetinaFacePerformanceTest(image, detector, detectionThreshold, overlapThreshold, imageFilepath);
+
+	cv::Mat copyImage(image);
+	DrawFaces(copyImage, faces);
+
+	std::experimental::filesystem::path outputPath(imageFilepath);
+	const auto fileNameWithoutExt = outputPath.stem();
+	const auto fileNameExt = outputPath.extension();
+
+	const std::string& outputFilename = fileNameWithoutExt.string() + "_detected" + fileNameExt.string();
+	cv::imwrite(outputFilename, copyImage);
+}
+
+void RetinaFacePerformanceTest(const cv::Mat& image, RetinaFaceDetector& detector, const float detectionThreshold,
+	const float overlapThreshold, const std::string& inputFilename)
+{
 	const int numTests = 100;
 	std::vector<int> inferenceTimes;
 	inferenceTimes.reserve(numTests);
@@ -37,6 +56,9 @@ int main(int argc, char* argv[])
 	int testsRun = 0;
 	const int emulatedFps = 30;
 	const float msBetweenFrames = 1000 / emulatedFps;
+
+	std::vector<Face> faces;
+	faces.reserve(500);
 
 	while (testsRun < numTests)
 	{
@@ -61,17 +83,8 @@ int main(int argc, char* argv[])
 	const float avgTime = std::accumulate(inferenceTimes.begin(), inferenceTimes.end(), 0) / (float)numTests;
 	const float potentialFps = 1000.0f / avgTime;
 
+	std::cout << "face count: " << faces.size() << std::endl;
 	std::cout << "min inference time: " << minTime << " ms" << std::endl;
 	std::cout << "max inference time: " << maxTime << " ms" << std::endl;
 	std::cout << "avg inference time: " << avgTime << " ms" << " (fps=" << potentialFps << ")" << std::endl;
-
-	cv::Mat copyImage(image);
-	DrawFaces(copyImage, faces);
-
-	std::experimental::filesystem::path outputPath(imageFilepath);
-	const auto fileNameWithoutExt = outputPath.stem();
-	const auto fileNameExt = outputPath.extension();
-
-	const std::string& outputFilename = fileNameWithoutExt.string() + "_detected" + fileNameExt.string();
-	cv::imwrite(outputFilename, copyImage);
 }
