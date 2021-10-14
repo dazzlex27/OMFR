@@ -19,14 +19,14 @@ public:
 
 private:
 	Anchor CreateAnchor(const AnchorKey& key, const int anchorCount);
-	cv::Mat PrepareImage(const cv::Mat& image, float* scaleFactor);
+	cv::Mat PrepareImage(const cv::Mat& image, float* scaleFactor) const;
 	std::vector<std::vector<float>> RunNet(const cv::Mat& floatImage);
-	std::vector<cv::Rect2f> ConvertDistancesToGoodBoxes(const Anchor& anchorCenters, const std::vector<float>& boxPredictions,
-		const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor);
-	std::vector<Landmarks> ConvertDistancesToGoodLms(const Anchor& anchorCenters, const std::vector<float>& lmPredictions,
-		const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor);
 	FaceDetectionResult GetResultFromTensorOutput(const std::vector<std::vector<float>>& outputTensorValues, const float threshold,
-		const float scaleFactor);
-	std::vector<int> ApplyNms(const std::vector<cv::Rect2f>& facesSortedByScore, const float overlapTheshold);
-	std::vector<Face> ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold);
+		const float scaleFactor) const;
+	std::vector<Face> ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold) const;
+	std::vector<cv::Rect2f> ConvertDistancesToGoodBoxes(const Anchor& anchorCenters, const std::vector<float>& boxPredictions,
+		const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor) const;
+	std::vector<Landmarks> ConvertDistancesToGoodLms(const Anchor& anchorCenters, const std::vector<float>& lmPredictions,
+		const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor) const;
+	std::vector<int> ApplyNms(const std::vector<cv::Rect2f>& facesSortedByScore, const float overlapTheshold) const;
 };

@@ -3,12 +3,21 @@
 #include "Structs.h"
 #include "Utils.h"
 #include <numeric>
+#include <filesystem>
 #include "RetinaFaceDetector.h"
 
 int main(int argc, char* argv[])
 {
+	if (argc < 2)
+	{
+		std::cout << "image name not provided" << std::endl;
+		return -1;
+	}
+
+	const std::string& imageFilepath = argv[1];
+	std::cout << "image name: " << imageFilepath << std::endl;
+
 	const char* modelFilepath = "det_10g.onnx";
-	const char* imageFilepath = "sh.jpg";
 	const float detectionThreshold = 0.5f;
 	const float overlapThreshold = 0.4f;
 
@@ -58,5 +67,11 @@ int main(int argc, char* argv[])
 
 	cv::Mat copyImage(image);
 	DrawFaces(copyImage, faces);
-	cv::imwrite("sh_detected.jpg", copyImage);
+
+	std::experimental::filesystem::path outputPath(imageFilepath);
+	const auto fileNameWithoutExt = outputPath.stem();
+	const auto fileNameExt = outputPath.extension();
+
+	const std::string& outputFilename = fileNameWithoutExt.string() + "_detected" + fileNameExt.string();
+	cv::imwrite(outputFilename, copyImage);
 }

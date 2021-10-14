@@ -28,7 +28,7 @@ std::vector<Face> RetinaFaceDetector::Detect(const cv::Mat& image, const float d
 	return faces;
 }
 
-cv::Mat RetinaFaceDetector::PrepareImage(const cv::Mat& image, float* scaleFactor)
+cv::Mat RetinaFaceDetector::PrepareImage(const cv::Mat& image, float* scaleFactor) const
 {
 	const float im_ratio = (float)image.rows / image.cols;
 	const float model_ratio = (float)_inputSize.height / _inputSize.width;
@@ -119,7 +119,7 @@ std::vector<std::vector<float>> RetinaFaceDetector::RunNet(const cv::Mat& floatI
 }
 
 FaceDetectionResult RetinaFaceDetector::GetResultFromTensorOutput(const std::vector<std::vector<float>>& outputTensorValues,
-	const float threshold, const float scaleFactor)
+	const float threshold, const float scaleFactor) const
 {
 	const int fmc = 3;
 	const bool useLandmarks = true;
@@ -150,7 +150,7 @@ FaceDetectionResult RetinaFaceDetector::GetResultFromTensorOutput(const std::vec
 		const int height = _inputSize.height / stride;
 		const int width = _inputSize.width / stride;
 		AnchorKey key = { height, width, stride };
-		Anchor anchor = _anchors[key];
+		Anchor anchor = _anchors.at(key);
 
 		// parse boxes
 		const std::vector<float>& boxPredictions = outputTensorValues[i + fmc];
@@ -169,7 +169,7 @@ FaceDetectionResult RetinaFaceDetector::GetResultFromTensorOutput(const std::vec
 	return result;
 }
 
-std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold)
+std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold) const
 {
 	const size_t faceCount = result.boxes.size();
 
@@ -211,7 +211,7 @@ std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& r
 }
 
 std::vector<cv::Rect2f> RetinaFaceDetector::ConvertDistancesToGoodBoxes(const Anchor& anchorCenters,
-	const std::vector<float>& boxPredictions, const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor)
+	const std::vector<float>& boxPredictions, const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor) const
 {
 	const int boxPointCount = 4;
 	const size_t positiveIndexCount = positiveIndexes.size();
@@ -244,7 +244,7 @@ std::vector<cv::Rect2f> RetinaFaceDetector::ConvertDistancesToGoodBoxes(const An
 }
 
 std::vector<Landmarks> RetinaFaceDetector::ConvertDistancesToGoodLms(const Anchor& anchorCenters,
-	const std::vector<float>& lmPredictions, const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor)
+	const std::vector<float>& lmPredictions, const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor) const
 {
 	const int lmPointCount = 5;
 	const size_t positiveIndexCount = positiveIndexes.size();
@@ -278,7 +278,7 @@ std::vector<Landmarks> RetinaFaceDetector::ConvertDistancesToGoodLms(const Ancho
 	return lms;
 }
 
-std::vector<int> RetinaFaceDetector::ApplyNms(const std::vector<cv::Rect2f>& facesSortedByScore, const float overlapTheshold)
+std::vector<int> RetinaFaceDetector::ApplyNms(const std::vector<cv::Rect2f>& facesSortedByScore, const float overlapTheshold) const
 {
 	const size_t faceCount = facesSortedByScore.size();
 	std::vector<float> areas;
