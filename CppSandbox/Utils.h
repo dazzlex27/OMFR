@@ -34,11 +34,22 @@ inline void DrawFaces(cv::Mat& image, const std::vector<Face>& faces)
 {
 	for (Face face : faces)
 	{
-		cv::rectangle(image, face.box, cv::Scalar(0, 0, 255), 2);
+		const int boxAbsX = std::round(face.box.x * image.cols);
+		const int boxAbsY = std::round(face.box.y * image.rows);
+		const int boxAbsWidth = std::round( face.box.width* image.cols);
+		const int boxAbsHeight = std::round(face.box.height * image.rows);
+
+		const cv::Rect absBox(boxAbsX, boxAbsY, boxAbsWidth, boxAbsHeight);
+		cv::rectangle(image, absBox, cv::Scalar(0, 0, 255), 2);
 		for (int i = 0; i < face.landmarks.size(); i++)
 		{
+			const int lmAbsX = std::round(boxAbsX + face.landmarks[i].x * boxAbsWidth);
+			const int lmAbsY = std::round(boxAbsY + face.landmarks[i].y * boxAbsHeight);
+
+			const cv::Point absPoint(lmAbsX, lmAbsY);
+
 			cv::Scalar color = i == 0 || i == 1 ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
-			cv::circle(image, face.landmarks[i], 1, color, 2);
+			cv::circle(image, absPoint, 1, color, 2);
 		}
 	}
 }

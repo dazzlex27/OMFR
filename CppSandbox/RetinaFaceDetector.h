@@ -23,7 +23,7 @@ private:
 	std::vector<std::vector<float>> RunNet(const cv::Mat& floatImage);
 	FaceDetectionResult GetResultFromTensorOutput(const std::vector<std::vector<float>>& outputTensorValues, const float threshold,
 		const float scaleFactor) const;
-	std::vector<Face> ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold) const;
+	std::vector<Face> ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold, const cv::Size& imageSize) const;
 	std::vector<cv::Rect2f> ConvertDistancesToGoodBoxes(const Anchor& anchorCenters, const std::vector<float>& boxPredictions,
 		const std::vector<int>& positiveIndexes, const int stride, const float scaleFactor) const;
 	std::vector<Landmarks> ConvertDistancesToGoodLms(const Anchor& anchorCenters, const std::vector<float>& lmPredictions,

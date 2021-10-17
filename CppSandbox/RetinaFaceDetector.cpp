@@ -23,7 +23,7 @@ std::vector<Face> RetinaFaceDetector::Detect(const cv::Mat& image, const float d
 
 	const std::vector<std::vector<float>>& outputTensorValues = RunNet(preparedImage);
 	const FaceDetectionResult& result = GetResultFromTensorOutput(outputTensorValues, detectionThreshold, scaleFactor);
-	const std::vector<Face>& faces = ConvertOutput(result, overlapThreshold);
+	const std::vector<Face>& faces = ConvertOutput(result, overlapThreshold, image.size());
 
 	return faces;
 }
@@ -169,7 +169,8 @@ FaceDetectionResult RetinaFaceDetector::GetResultFromTensorOutput(const std::vec
 	return result;
 }
 
-std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold) const
+std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& result, const float overlapThreshold,
+	const cv::Size& imageSize) const
 {
 	const size_t faceCount = result.boxes.size();
 
@@ -195,14 +196,30 @@ std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& r
 	std::vector<Face> validFaces;
 	validFaces.reserve(validFaceCount);
 
+	const int width = imageSize.width;
+	const int height = imageSize.height;
+
 	for (int i = 0; i < validFaceCount; i++)
 	{
 		const int index = validFacesIndexes[i];
 
+		const cv::Rect2f& absBox = boxesSortedByScore[index];
+		const cv::Rect2f relBox(absBox.x / width, absBox.y / height, absBox.width / width, absBox.height / height);
+
+		const int lmCount = index < lmsSortedByScore.size() ? lmsSortedByScore[index].size() : 0;
+		Landmarks relLandmarks;
+		relLandmarks.reserve(lmCount);
+		for (int j = 0; j < lmCount; j++)
+		{
+			const cv::Point2f& absPoint = lmsSortedByScore[index][j];
+			const cv::Point2f relPoint((absPoint.x - absBox.x) / absBox.width, (absPoint.y - absBox.y) / absBox.height);
+			relLandmarks.emplace_back(relPoint);
+		}
+
 		Face face;
-		face.box = boxesSortedByScore[index];
+		face.box = relBox;
 		face.score = result.scores[index];
-		face.landmarks = index < lmsSortedByScore.size() ? lmsSortedByScore[index] : Landmarks();
+		face.landmarks = relLandmarks;
 
 		validFaces.emplace_back(face);
 	}
