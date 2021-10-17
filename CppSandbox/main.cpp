@@ -73,16 +73,9 @@ void NormalizationTest(const cv::Mat& image, const fs::path& imagePath, const st
 
 	const int lmCount = 5;
 	const int lmPoints = 2;
-	float dstMap[lmCount * lmPoints] = { 38.2946, 51.6963, 73.5318, 51.5014, 56.0252, 71.7366, 41.5493, 92.3655, 70.7299, 92.2041 };
-	//float dstMapRel[lmCount * lmPoints] =
-	//{
-	//0.341916071428571,	0.461574107142857,
-	//0.656533928571429,	0.459833928571429,
-	//0.500225,			0.640505357142857,
-	//0.370975892857143,	0.824691964285714,
-	//0.631516964285714,	0.823250892857143
-	//};
-	//cv::Mat dstMat(cv::Size(lmPoints, lmCount), CV_32FC1, dstMap);
+	const cv::Size dstSize(112, 112);
+	//float dstMap[lmCount * lmPoints] = { 38.2946, 51.6963, 73.5318, 51.5014, 56.0252, 71.7366, 41.5493, 92.3655, 70.7299, 92.2041 };
+	float dstMap[lmCount * lmPoints] = { 0.34191, 0.46157, 0.65653, 0.45983, 0.50022, 0.64050, 0.37097, 0.82469, 0.63151, 0.82325 };
 
 	for (int i = 0; i < faces.size(); i++)
 	{
@@ -97,38 +90,60 @@ void NormalizationTest(const cv::Mat& image, const fs::path& imagePath, const st
 		{
 			const int x = face.landmarks[j].x * absRect.width;
 			const int y = face.landmarks[j].y * absRect.height;
-
-			cv::Point2f absPoint(x, y);
-
-			absLandmarks.emplace_back(absPoint);
-			cv::circle(faceImage, absPoint, 1, cv::Scalar(0, 255, 0), 2);
+			absLandmarks.emplace_back(cv::Point2f(x, y));
 		}
-
-		const std::string& faceImagePath = imageFacesFolder + "/" + std::to_string(i) + ext;
-		cv::imwrite(faceImagePath, faceImage);
 
 		int pixelOffsetX = 0;
 		int pixelOffsetY = 0;
-		//float widthScaleValue = 0;
-		//float heightScaleValue = 0;
+		float scaleValueX = 0;
+		float scaleValueY = 0;
 		int maxDim = faceImage.cols;
 		if (faceImage.cols < faceImage.rows)
 		{
 			pixelOffsetX = (faceImage.rows - faceImage.cols) / 2;
-			//widthScaleValue = pixelOffset / (float)faceImage.rows;
+			scaleValueX = pixelOffsetX / (float)faceImage.rows;
 			maxDim = faceImage.rows;
 		}
 		if (faceImage.rows < faceImage.cols)
 		{
 			pixelOffsetY = (faceImage.cols - faceImage.rows) / 2;
-			//heightScaleValue = pixelOffset / (float)faceImage.cols;
+			scaleValueY = pixelOffsetY / (float)faceImage.cols;
 			maxDim = faceImage.cols;
 		}
 
-		cv::Size sqSize(maxDim, maxDim);
-		cv::Mat paddedImage = cv::Mat(sqSize, CV_8UC3);
-		cv::Rect roi(cv::Point(pixelOffsetX, pixelOffsetY), faceImage.size());
-		faceImage.copyTo(paddedImage(roi));
+		cv::Rect absRectPadded(absRect.x - pixelOffsetX, absRect.y - pixelOffsetY, maxDim, maxDim);
+
+		const int pixelOffset = (float)maxDim * 0.3;
+		cv::Rect enlargedRect(absRectPadded.x - pixelOffset, absRectPadded.y - pixelOffset,
+			absRectPadded.width + pixelOffset*2, absRectPadded.height + pixelOffset*2);
+		cv::Mat paddedEnlImage;
+		const bool xOk = enlargedRect.x >= 0;
+		const bool yOk = enlargedRect.y >= 0;
+		const bool wOk = enlargedRect.x + enlargedRect.width < image.cols;
+		const bool hOk = enlargedRect.y + enlargedRect.height < image.rows;
+
+		const bool rectInbounds = xOk && yOk && wOk && hOk;
+		if (rectInbounds)
+			paddedEnlImage = image(enlargedRect);
+		else
+		{
+			const int xOffset = xOk ? 0 : std::abs(enlargedRect.x);
+			const int yOffset = yOk ? 0 : std::abs(enlargedRect.y);
+			const int wOffset = wOk ? 0 : (enlargedRect.x + enlargedRect.width) - image.cols;
+			const int hOffset = hOk ? 0 : (enlargedRect.y + enlargedRect.height) - image.rows;
+
+			cv::Rect enlIntRect(enlargedRect.x + xOffset, enlargedRect.y + yOffset,
+				enlargedRect.width - wOffset - xOffset, enlargedRect.height - hOffset - yOffset);
+
+			paddedEnlImage = cv::Mat(cv::Size(enlargedRect.width, enlargedRect.height), CV_8UC3);
+			cv::Mat partImage = image(enlIntRect);
+
+			const int reducedWidth = enlargedRect.width - xOffset - wOffset;
+			const int reducedHeight = enlargedRect.height - yOffset - hOffset;
+			cv::Rect intRect(xOffset, yOffset, reducedWidth, reducedHeight);
+
+			partImage.copyTo(paddedEnlImage(intRect));
+		}
 
 		Landmarks correctedLandmarks;
 		correctedLandmarks.reserve(face.landmarks.size());
@@ -138,24 +153,22 @@ void NormalizationTest(const cv::Mat& image, const fs::path& imagePath, const st
 
 		for (int j = 0; j < face.landmarks.size(); j++)
 		{
-			const int x = absLandmarks[j].x + pixelOffsetX;
-			const int y = absLandmarks[j].y + pixelOffsetY;
+			const float x = face.landmarks[j].x * faceImage.cols / maxDim + scaleValueX;
+			const float y = face.landmarks[j].y * faceImage.rows / maxDim + scaleValueY;
 
-			cv::circle(paddedImage, cv::Point(x, y), 1, cv::Scalar(0, 255, 255), 2);
-			correctedLandmarks.emplace_back(cv::Point2f(x, y));
+			const int corrX = x * maxDim + pixelOffset;
+			const int corrY = y * maxDim + pixelOffset;
+			cv::Point2f corrLm(corrX, corrY);
+			correctedLandmarks.emplace_back(corrLm);
 
-			const int idX = dstMap[j * 2] * paddedImage.cols / 112;
-			const int idY = dstMap[j * 2 + 1] * paddedImage.rows / 112;
-			cv::circle(paddedImage, cv::Point(idX, idY), 1, cv::Scalar(255, 0, 255), 2);
-			correctedIdLandmarks.emplace_back(cv::Point2f(idX, idY));
+			const int idX = dstMap[j * 2] * maxDim + pixelOffset;
+			const int idY = dstMap[j * 2 + 1] * maxDim + pixelOffset;
+			cv::Point2f corrId(idX, idY);
+			correctedIdLandmarks.emplace_back(corrId);
 		}
-
-		const std::string& paddedFaceImagePath = imageFacesFolder + "/" + std::to_string(i) + "_padded" + ext;
-		cv::imwrite(paddedFaceImagePath, paddedImage);
 
 		cv::Mat srcMat(cv::Size(lmPoints, lmCount), CV_32FC1, (float*)correctedLandmarks.data());
 		cv::Mat dstMat(cv::Size(lmPoints, lmCount), CV_32FC1, (float*)correctedIdLandmarks.data());
-		//cv::Mat affine = cv::estimateAffine2D(srcMat, dstMat);
 		cv::Mat affine = FacePreprocess::similarTransform(srcMat, dstMat);
 		for (int j = 0; j < affine.rows; j++)
 		{
@@ -168,34 +181,20 @@ void NormalizationTest(const cv::Mat& image, const fs::path& imagePath, const st
 			std::cout << std::endl;
 		}
 
-		try
-		{
-			cv::Mat normImage = cv::Mat(paddedImage.size(), CV_8UC3);
-			cv::Mat affine3x2 = cv::Mat(2, 3, CV_32FC1, affine.data);
-			cv::warpAffine(paddedImage, normImage, affine3x2, paddedImage.size());
-			const std::string& normFaceImagePath = imageFacesFolder + "/" + std::to_string(i) + "_norm" + ext;
-			cv::imwrite(normFaceImagePath, normImage);
-		}
-		catch (const cv::Exception& ex)
-		{
-			std::cout << ex.msg << std::endl;
-		}
-		catch (const std::exception& ex)
-		{
-			std::cout << ex.what() << std::endl;
-		}
-		catch (...) { //everything else
-		}
+		cv::Mat normImage = cv::Mat(paddedEnlImage.size(), CV_8UC3);
+		cv::Mat affine3x2 = cv::Mat(2, 3, CV_32FC1, affine.data);
+		cv::warpAffine(paddedEnlImage, normImage, affine3x2, paddedEnlImage.size());
 
+		cv::Rect unpaddedRect(pixelOffset, pixelOffset, normImage.cols - pixelOffset * 2, normImage.rows - pixelOffset * 2);
+		cv::Mat unpaddedImage = normImage(unpaddedRect);
+
+		cv::Mat finalImage;
+		cv::resize(unpaddedImage, finalImage, dstSize);
+		const std::string& finalFaceImagePath = imageFacesFolder + "/" + std::to_string(i) + "_final" + ext;
+		cv::imwrite(finalFaceImagePath, finalImage);
 	}
-	
 
-	//float srcMap[lmCount * lmPoints] = { 38.2946, 51.6963, 73.5318, 51.5014, 56.0252, 71.7366, 41.5493, 92.3655, 70.7299, 92.2041 };
-	//float srcMap[lmCount * lmPoints] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-
-
-	std::wcout << std::endl;
+	std::cout << std::endl;
 }
 
 void RetinaFacePerformanceTest(const cv::Mat& image, RetinaFaceDetector& detector, const float detectionThreshold,
