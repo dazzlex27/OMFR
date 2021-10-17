@@ -48,5 +48,8 @@
     <ClInclude Include="OrtUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Umeyama.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

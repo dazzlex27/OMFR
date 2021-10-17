@@ -104,6 +104,7 @@
     <ClInclude Include="OrtUtils.h" />
     <ClInclude Include="RetinaFaceDetector.h" />
     <ClInclude Include="Structs.h" />
+    <ClInclude Include="Umeyama.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
