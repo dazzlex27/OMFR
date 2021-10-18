@@ -95,7 +95,7 @@ std::vector<cv::Mat> ArcFaceNormalizer::GetNormalizedFaces(const cv::Mat& image,
 
 		const cv::Mat srcMat(_lmArraySize, CV_32FC1, (float*)correctedLandmarks.data());
 		const cv::Mat dstMat(_lmArraySize, CV_32FC1, (float*)correctedIdLandmarks.data());
-		const cv::Mat affine = FacePreprocess::similarTransform(srcMat, dstMat);
+		const cv::Mat affine = _transformer.GetSimilarTransform(srcMat, dstMat);
 		const cv::Mat affine3x2(2, 3, CV_32FC1, affine.data);
 
 		const cv::Mat normImage(paddedEnlImage.size(), CV_8UC3);

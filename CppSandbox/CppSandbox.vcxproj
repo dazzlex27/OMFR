@@ -96,6 +96,7 @@
     <ClCompile Include="inference.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RetinaFaceDetector.cpp" />
+    <ClCompile Include="Umeyama.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
