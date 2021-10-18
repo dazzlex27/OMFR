@@ -92,6 +92,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ArcFace50Indexer.cpp" />
     <ClCompile Include="ArcFaceNormalizer.cpp" />
     <ClCompile Include="inference.cpp" />
     <ClCompile Include="main.cpp" />
@@ -102,6 +103,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ArcFace50Indexer.h" />
     <ClInclude Include="ArcFaceNormalizer.h" />
     <ClInclude Include="CvInclude.h" />
     <ClInclude Include="OrtUtils.h" />

@@ -3,7 +3,7 @@
 #include <onnxruntime_cxx_api.h>
 #include "Utils.h"
 
-Ort::Session CreateSession(Ort::Env& env, const std::string modelPath)
+inline Ort::Session CreateSession(Ort::Env& env, const std::string modelPath)
 {
 	Ort::SessionOptions sessionOptions;
 	sessionOptions.SetIntraOpNumThreads(1);

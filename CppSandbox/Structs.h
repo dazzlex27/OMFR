@@ -4,6 +4,7 @@
 #include "CvInclude.h"
 
 typedef std::vector<std::vector<float>> Anchor;
+typedef std::vector<float> FaceIndex;
 
 struct FaceDetectionResult
 {
@@ -17,6 +18,7 @@ struct Face
 	cv::Rect2f box;
 	float score;
 	Landmarks landmarks;
+	FaceIndex index;
 };
 
 struct AnchorKey
