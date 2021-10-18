@@ -2,6 +2,9 @@
 
 #include <locale>
 #include <codecvt>
+#include <filesystem>
+
+namespace fs = std::experimental::filesystem;
 
 inline std::wstring StringToWstring(const std::string& utf8String, const size_t numBytes)
 {
@@ -52,4 +55,19 @@ inline void DrawFaces(cv::Mat& image, const std::vector<Face>& faces)
 			cv::circle(image, absPoint, 1, color, 2);
 		}
 	}
+}
+
+inline void RemoveDirectory(const std::string& directoryName)
+{
+	if (fs::exists(directoryName))
+		fs::remove_all(directoryName);
+}
+
+inline void CreateDirectory(const std::string& directoryName, bool reset = false)
+{
+	if (reset)
+		RemoveDirectory(directoryName);
+
+	if (!fs::exists(directoryName))
+		fs::create_directory(directoryName);
 }
