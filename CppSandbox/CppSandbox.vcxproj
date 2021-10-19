@@ -94,6 +94,7 @@
   <ItemGroup>
     <ClCompile Include="ArcFace50Indexer.cpp" />
     <ClCompile Include="ArcFaceNormalizer.cpp" />
+    <ClCompile Include="FaceComparer.cpp" />
     <ClCompile Include="inference.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RetinaFaceDetector.cpp" />
@@ -106,6 +107,7 @@
     <ClInclude Include="ArcFace50Indexer.h" />
     <ClInclude Include="ArcFaceNormalizer.h" />
     <ClInclude Include="CvInclude.h" />
+    <ClInclude Include="FaceComparer.h" />
     <ClInclude Include="OrtUtils.h" />
     <ClInclude Include="RetinaFaceDetector.h" />
     <ClInclude Include="Structs.h" />
