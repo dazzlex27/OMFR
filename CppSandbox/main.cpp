@@ -9,15 +9,47 @@
 
 namespace fs = std::experimental::filesystem;
 
+std::map<std::string, FaceIndex> ReadDataBaseFromFile(const std::string& databasePath, const int indexSize);
+void CompareFaces(std::vector<Face>& faces, const std::map<std::string, FaceIndex>& database, const int indexSize,
+	const float comparisonThreshold);
 void RetinaFacePerformanceTest(const cv::Mat& image, RetinaFaceDetector& detector, const float detectionThreshold,
 	const float overlapThreshold);
 void NormalizationPerformanceTest(const cv::Mat& image, const ArcFaceNormalizer& normalizer, const std::vector<Face>& faces);
-void IndexingPerformanceTest(ArcFace50Indexer& indexer, const std::vector<cv::Mat>& faceImages);
-void SaveDetectionResult(const cv::Mat& image, const std::vector<Face>& faces,
+void IndexingPerformanceTest(ArcFace50Indexer& indexer, const std::vector<Face>& faces);
+void DrawFaces(const cv::Mat& image, const std::vector<Face>& faces,
 	const fs::path& imagePath, const std::string& imageFacesFolder);
 void SaveNormalizationResult(const std::vector<cv::Mat>& normalizedFaces, const fs::path& imagePath,
 	const std::string& imageFacesFolder);
 void SaveIndexingResult(const std::vector<Face>& faces, const std::string& imageFacesFolder);
+
+float cosine_similarity2(float*const array1, float*const array2, int size)
+{
+	float* a = array1;
+	float* b = array2;
+
+	float mul = 0.0;
+	float d_a = 0.0;
+	float d_b = 0.0;
+
+	for (int i = 0; i < size; i++)
+	{
+		mul += *a * *b;
+		d_a += *a * *a;
+		d_b += *b * *b;
+
+		a++;
+		b++;
+	}
+
+	if (d_a == 0 || d_b == 0)
+	{
+		throw std::runtime_error(
+			"cosine similarity is not defined whenever one or both "
+			"input vectors are zero-vectors.");
+	}
+
+	return mul / (sqrt(d_a * d_b));
+}
 
 int main(int argc, char* argv[])
 {
@@ -32,15 +64,21 @@ int main(int argc, char* argv[])
 	std::cout << "image name: " << imageFilepath << std::endl;
 	std::cout << std::endl;
 #else
-	std::string imageFilepath = "sh.jpg";
+	std::string imageFilepath = "images/cinema.jpg";
 #endif
 
-	const char* detectorModelFilepath = "det_10g.onnx";
-	const char* indexerModelFilepath = "w600k_r50.onnx";
+	const int indexSize = 512;
+	const std::string databasePath("database");
+	const std::string detectorModelFilepath("det_10g.onnx");
+	const std::string indexerModelFilepath("w600k_r50.onnx");
+	const cv::Size arcFaceTargetSize(112, 112);
 	const float detectionThreshold = 0.5f;
 	const float overlapThreshold = 0.4f;
+	const float comparisonThreshold = 0.3f;
 
-	cv::Mat image = cv::imread(imageFilepath);
+	const std::map<std::string, FaceIndex>& database = ReadDataBaseFromFile(databasePath, indexSize);
+
+	const cv::Mat& image = cv::imread(imageFilepath);
 
 	Ort::Env env(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING, "inference");
 
@@ -50,33 +88,32 @@ int main(int argc, char* argv[])
 	ArcFaceNormalizer normalizer;
 	const std::vector<cv::Mat>& normalizedFaces = normalizer.GetNormalizedFaces(image, faces);
 
-	const cv::Size dstSize(112, 112);
-	std::vector<cv::Mat> scaledNormImages;
-	scaledNormImages.reserve(normalizedFaces.size());
-	for (int i = 0; i < normalizedFaces.size(); i++)
+	for (int i = 0; i < faces.size(); i++)
 	{
 		cv::Mat scaledNormImage;
-		cv::resize(normalizedFaces[i], scaledNormImage, dstSize);
-		scaledNormImages.emplace_back(scaledNormImage);
+		cv::resize(normalizedFaces[i], scaledNormImage, arcFaceTargetSize);
+		faces[i].normImage = scaledNormImage;
 	}
 
 	ArcFace50Indexer indexer(env, indexerModelFilepath);
-	for (int i = 0; i < scaledNormImages.size(); i++)
-		faces[i].index = indexer.GetIndex(scaledNormImages[i]);
+	for (int i = 0; i < faces.size(); i++)
+		faces[i].index = indexer.GetIndex(faces[i].normImage);
 
-	RetinaFacePerformanceTest(image, detector, detectionThreshold, overlapThreshold);
-	NormalizationPerformanceTest(image, normalizer, faces);
-	IndexingPerformanceTest(indexer, scaledNormImages);
+	CompareFaces(faces, database, indexSize, comparisonThreshold);
 
-	fs::path imagePath(imageFilepath);
+	const fs::path imagePath(imageFilepath);
 	const std::string& faceFolderName = "faces";
-	CreateDirectory(faceFolderName);
+	Utils::CreateDirectory(faceFolderName);
 	const std::string& imageFacesFolder = faceFolderName + "/" + imagePath.stem().string();
-	CreateDirectory(imageFacesFolder, true);
+	Utils::CreateDirectory(imageFacesFolder, true);
 
-	SaveDetectionResult(image, faces, imagePath, imageFacesFolder);
+	DrawFaces(image, faces, imagePath, imageFacesFolder);
 	SaveNormalizationResult(normalizedFaces, imagePath, imageFacesFolder);
 	SaveIndexingResult(faces, imageFacesFolder);
+
+	//RetinaFacePerformanceTest(image, detector, detectionThreshold, overlapThreshold);
+	//NormalizationPerformanceTest(image, normalizer, faces);
+	//IndexingPerformanceTest(indexer, faces);
 }
 
 void RetinaFacePerformanceTest(const cv::Mat& image, RetinaFaceDetector& detector, const float detectionThreshold,
@@ -176,7 +213,7 @@ void NormalizationPerformanceTest(const cv::Mat& image, const ArcFaceNormalizer&
 	std::cout << std::endl;
 }
 
-void IndexingPerformanceTest(ArcFace50Indexer& indexer, const std::vector<cv::Mat>& faceImages)
+void IndexingPerformanceTest(ArcFace50Indexer& indexer, const std::vector<Face>& faces)
 {
 	std::cout << "starting indexing performance test..." << std::endl;
 
@@ -202,11 +239,11 @@ void IndexingPerformanceTest(ArcFace50Indexer& indexer, const std::vector<cv::Ma
 
 		lastUpdated = std::chrono::steady_clock::now();
 
-		if (i == faceImages.size())
+		if (i == faces.size())
 			i = 0;
 
 		const auto begin = std::chrono::steady_clock::now();
-		index = indexer.GetIndex(faceImages[i]);
+		index = indexer.GetIndex(faces[i].normImage);
 		const auto end = std::chrono::steady_clock::now();
 		const auto msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 		runTimes.emplace_back((int)msElapsed);
@@ -221,18 +258,18 @@ void IndexingPerformanceTest(ArcFace50Indexer& indexer, const std::vector<cv::Ma
 	const float potentialFps = 1000.0f / avgTime;
 
 	std::cout << "finished indexing performance test:" << std::endl;
-	std::cout << "face count: " << faceImages.size() << std::endl;
+	std::cout << "face count: " << faces.size() << std::endl;
 	std::cout << "min indexing time: " << minTime << " ms" << std::endl;
 	std::cout << "max indexing time: " << maxTime << " ms" << std::endl;
 	std::cout << "avg indexing time: " << avgTime << " ms" << " (fps=" << potentialFps << ")" << std::endl;
 	std::cout << std::endl;
 }
 
-void SaveDetectionResult(const cv::Mat& image, const std::vector<Face>& faces,
+void DrawFaces(const cv::Mat& image, const std::vector<Face>& faces,
 	const fs::path& imagePath, const std::string& imageFacesFolder)
 {
 	cv::Mat copyImage = image.clone();
-	DrawFaces(copyImage, faces);
+	Utils::DrawFaces(copyImage, faces);
 
 	fs::path outputPath(imagePath);
 	const auto fileNameWithoutExt = outputPath.stem();
@@ -246,7 +283,7 @@ void SaveNormalizationResult(const std::vector<cv::Mat>& normalizedFaces, const 
 	const std::string& imageFacesFolder)
 {
 	const std::string normFacesFolderName(imageFacesFolder + "/" + "normalized");
-	CreateDirectory(normFacesFolderName);
+	Utils::CreateDirectory(normFacesFolderName);
 	const std::string& ext = imagePath.extension().string();
 
 	for (int i = 0; i < normalizedFaces.size(); i++)
@@ -262,7 +299,7 @@ void SaveNormalizationResult(const std::vector<cv::Mat>& normalizedFaces, const 
 void SaveIndexingResult(const std::vector<Face>& faces, const std::string& imageFacesFolder)
 {
 	const std::string indexFolderName(imageFacesFolder + "/" + "indexes");
-	CreateDirectory(indexFolderName);
+	Utils::CreateDirectory(indexFolderName);
 
 	for (int i = 0; i < faces.size(); i++)
 	{
@@ -273,5 +310,85 @@ void SaveIndexingResult(const std::vector<Face>& faces, const std::string& image
 			file << faces[i].index[j] << " ";
 		file << std::endl;
 		file.close();
+	}
+}
+
+std::map<std::string, FaceIndex> ReadDataBaseFromFile(const std::string& databasePath, const int indexSize)
+{
+	if (!fs::exists(databasePath))
+	{
+		std::cout << "database folder was not found!" << std::endl;
+		return std::map<std::string, FaceIndex>();
+	}
+
+	std::map<std::string, FaceIndex> databaseMap;
+
+	for (const auto& dirEntry : fs::recursive_directory_iterator(databasePath))
+	{
+		std::cout << dirEntry << std::endl;
+
+		std::ifstream file;
+		file.open(dirEntry);
+
+		const std::string& name = dirEntry.path().stem().string();
+
+		FaceIndex index;
+		index.reserve(indexSize);
+
+		std::string line;
+		std::getline(file, line);
+
+		const char delimiter = ' ';
+
+		std::vector<std::string> tokens;
+		std::string token;
+		std::istringstream tokenStream(line);
+		while (std::getline(tokenStream, token, delimiter))
+		{
+			const float value = std::stof(token);
+			index.emplace_back(value);
+		}
+		file.close();
+		
+		databaseMap.emplace(name, index);
+	}
+
+	std::cout << "faces in database: " << databaseMap.size() << std::endl;
+
+	return databaseMap;
+}
+
+void CompareFaces(std::vector<Face>& faces, const std::map<std::string, FaceIndex>& database, const int indexSize,
+	const float comparisonThreshold)
+{
+	for (int i = 0; i < faces.size(); i++)
+	{
+		float maxSimilarity = -1.5f;
+		std::string maxSimilarName;
+		bool matched = false;
+
+		for (auto const& entry : database)
+		{
+			const FaceIndex& currentIndex = faces[i].index;
+
+			const std::string& name = entry.first;
+			const FaceIndex& index = entry.second;
+
+			const float similarity = cosine_similarity2((float*)index.data(), (float*)currentIndex.data(), index.size());
+			if (similarity > comparisonThreshold && similarity > maxSimilarity)
+			{
+				matched = true;
+				maxSimilarity = similarity;
+				maxSimilarName = name;
+				std::cout << "face " << i << " is similar to " << name << " with value of " << similarity << std::endl;
+			}
+		}
+
+		if (matched)
+		{
+			std::cout << "face " << i << " matches best with entry " << maxSimilarName << " with similarity of " << maxSimilarity << std::endl;
+			faces[i].label = maxSimilarName;
+			faces[i].similarity = maxSimilarity;
+		}
 	}
 }

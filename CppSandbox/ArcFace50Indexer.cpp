@@ -71,7 +71,7 @@ FaceIndex ArcFace50Indexer::RunNet(const cv::Mat& floatImage)
 	auto inputTensorInfo = inputTypeInfo.GetTensorTypeAndShapeInfo();
 	ONNXTensorElementDataType inputType = inputTensorInfo.GetElementType();
 	std::vector<int64_t> inputDims = { 1, _inputDepth, _inputSize.width, _inputSize.height };
-	size_t inputTensorSize = VectorProduct(inputDims);
+	size_t inputTensorSize = Utils::VectorProduct(inputDims);
 
 	Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
 	const auto dataPointer = (float*)(floatImage.data);
@@ -86,7 +86,7 @@ FaceIndex ArcFace50Indexer::RunNet(const cv::Mat& floatImage)
 	auto outputTensorInfo = outputTypeInfo.GetTensorTypeAndShapeInfo();
 	ONNXTensorElementDataType outputType = outputTensorInfo.GetElementType();
 	const auto outputDims = outputTensorInfo.GetShape();
-	size_t outputTensorSize = VectorProduct(outputDims);
+	size_t outputTensorSize = Utils::VectorProduct(outputDims);
 
 	FaceIndex outputTensorValue(outputTensorSize); // reserve space for output values
 

@@ -76,7 +76,7 @@ std::vector<std::vector<float>> RetinaFaceDetector::RunNet(const cv::Mat& floatI
 	auto inputTensorInfo = inputTypeInfo.GetTensorTypeAndShapeInfo();
 	ONNXTensorElementDataType inputType = inputTensorInfo.GetElementType();
 	std::vector<int64_t> inputDims = { 1, _inputDepth, _inputSize.width, _inputSize.height };
-	size_t inputTensorSize = VectorProduct(inputDims);
+	size_t inputTensorSize = Utils::VectorProduct(inputDims);
 
 	Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
 	const auto dataPointer = (float*)(floatImage.data);
@@ -104,7 +104,7 @@ std::vector<std::vector<float>> RetinaFaceDetector::RunNet(const cv::Mat& floatI
 		auto outputTensorInfo = outputTypeInfo.GetTensorTypeAndShapeInfo();
 		outputDims.emplace_back(outputTensorInfo.GetShape());
 
-		size_t outputTensorSize = VectorProduct(outputDims[i]);
+		size_t outputTensorSize = Utils::VectorProduct(outputDims[i]);
 		outputTensorValues.emplace_back(std::vector<float>(outputTensorSize)); // reserve space for output values
 
 		outputTensors.emplace_back(Ort::Value::CreateTensor<float>(memoryInfo, outputTensorValues[i].data(),
@@ -174,7 +174,7 @@ std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& r
 {
 	const size_t faceCount = result.boxes.size();
 
-	std::vector<int> indexesSortedByScore = Argsort(result.scores);
+	std::vector<int> indexesSortedByScore = Utils::Argsort(result.scores);
 	std::reverse(indexesSortedByScore.begin(), indexesSortedByScore.end());
 
 	std::vector<cv::Rect2f> boxesSortedByScore;
@@ -204,7 +204,11 @@ std::vector<Face> RetinaFaceDetector::ConvertOutput(const FaceDetectionResult& r
 		const int index = validFacesIndexes[i];
 
 		const cv::Rect2f& absBox = boxesSortedByScore[index];
-		const cv::Rect2f relBox(absBox.x / width, absBox.y / height, absBox.width / width, absBox.height / height);
+		cv::Rect2f relBox(absBox.x / width, absBox.y / height, absBox.width / width, absBox.height / height);
+		if (relBox.x + relBox.width > 1)
+			relBox.width = 1 - relBox.x;
+		if (relBox.y + relBox.height > 1)
+			relBox.height = 1 - relBox.y;
 
 		const int lmCount = index < lmsSortedByScore.size() ? lmsSortedByScore[index].size() : 0;
 		Landmarks relLandmarks;

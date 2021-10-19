@@ -24,7 +24,7 @@ inline Ort::Session CreateSession(Ort::Env& env, const std::string modelPath)
 	// ORT_ENABLE_ALL -> To Enable All possible optimizations
 	sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
-	std::wstring modelFilepathW = StringToWstring(modelPath, modelPath.size());
+	std::wstring modelFilepathW = Utils::StringToWstring(modelPath, modelPath.size());
 
 	return Ort::Session(env, modelFilepathW.c_str(), sessionOptions);
 }

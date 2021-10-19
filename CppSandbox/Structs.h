@@ -18,7 +18,10 @@ struct Face
 	cv::Rect2f box;
 	float score;
 	Landmarks landmarks;
+	cv::Mat normImage;
 	FaceIndex index;
+	std::string label;
+	float similarity;
 };
 
 struct AnchorKey
