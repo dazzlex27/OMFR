@@ -1,24 +1,26 @@
-#include "ArcFace50Indexer.h"
+#include "GenderAgeAnalyzer.h"
 #include "OrtUtils.h"
 #include <numeric>
 
-ArcFace50Indexer::ArcFace50Indexer(Ort::Env& env, const std::string& modelFilepath)
+GenderAgeAnalyzer::GenderAgeAnalyzer(Ort::Env& env, const std::string& modelFilepath)
 	:_session(CreateSession(env, modelFilepath))
 {
 }
 
-FaceIndex ArcFace50Indexer::GetIndex(const cv::Mat& faceImage)
+GenderAgeAttributes GenderAgeAnalyzer::GetAttributes(const cv::Mat& faceImage)
 {
 	float scaleFactor = 1;
 	const cv::Mat& preparedImage = PrepareImage(faceImage, &scaleFactor); // 4-dim float
 
-	return RunNet(preparedImage);
+	const std::vector<float>& tensorOutput = RunNet(preparedImage);
+
+	return GetResultFromTensorOutput(tensorOutput);
 }
 
-cv::Mat ArcFace50Indexer::PrepareImage(const cv::Mat& image, float* scaleFactor) const
+cv::Mat GenderAgeAnalyzer::PrepareImage(const cv::Mat& image, float* scaleFactor) const
 {
 	cv::Mat paddedImage;
-	
+
 	const bool imgSizeMatches = image.cols == _inputSize.width && image.rows == _inputSize.height;
 	if (imgSizeMatches)
 		paddedImage = image;
@@ -46,7 +48,7 @@ cv::Mat ArcFace50Indexer::PrepareImage(const cv::Mat& image, float* scaleFactor)
 		cv::Mat resizedImage;
 		cv::resize(image, resizedImage, cv::Size(newWidth, newHeight));
 
-		cv::Mat paddedImage = cv::Mat(_inputSize, CV_8UC3);
+		paddedImage = cv::Mat(_inputSize, CV_8UC3);
 		cv::Rect roi(cv::Point(0, 0), resizedImage.size());
 		resizedImage.copyTo(paddedImage(roi));
 	}
@@ -59,7 +61,7 @@ cv::Mat ArcFace50Indexer::PrepareImage(const cv::Mat& image, float* scaleFactor)
 	return cv::dnn::blobFromImage(paddedImage, inputStdNorm, _inputSize, meanNorm, true);
 }
 
-FaceIndex ArcFace50Indexer::RunNet(const cv::Mat& floatImage)
+std::vector<float> GenderAgeAnalyzer::RunNet(const cv::Mat& floatImage)
 {
 	Ort::AllocatorWithDefaultOptions allocator;
 
@@ -87,7 +89,7 @@ FaceIndex ArcFace50Indexer::RunNet(const cv::Mat& floatImage)
 	const auto outputDims = outputTensorInfo.GetShape();
 	size_t outputTensorSize = Utils::VectorProduct(outputDims);
 
-	FaceIndex outputTensorValue(outputTensorSize); // reserve space for output values
+	std::vector<float> outputTensorValue(outputTensorSize); // reserve space for output values
 
 	std::vector<Ort::Value> outputTensors;
 	outputTensors.emplace_back(Ort::Value::CreateTensor<float>(memoryInfo, outputTensorValue.data(),
@@ -98,4 +100,22 @@ FaceIndex ArcFace50Indexer::RunNet(const cv::Mat& floatImage)
 		outputNames.data(), outputTensors.data(), 1);
 
 	return outputTensorValue;
+}
+
+GenderAgeAttributes GenderAgeAnalyzer::GetResultFromTensorOutput(const std::vector<float>& tensorOutput) const
+{
+	GenderAgeAttributes attributes;
+
+	if (tensorOutput.size() != 3)
+		return attributes;
+
+	bool isMale = false;
+
+	if (tensorOutput[0] > tensorOutput[1])
+		isMale = true;
+
+	attributes.first = isMale ? Gender::Male : Gender::Female;
+	attributes.second = (int)(std::round(tensorOutput[2] * 100));
+
+	return attributes;
 }

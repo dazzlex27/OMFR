@@ -7,6 +7,7 @@
 #include "ArcFaceNormalizer.h"
 #include "ArcFace50Indexer.h"
 #include "FaceComparer.h"
+#include "GenderAgeAnalyzer.h"
 
 namespace fs = std::experimental::filesystem;
 
@@ -15,6 +16,7 @@ void IndexFaces(ArcFace50Indexer& indexer, std::vector<Face>& faces, const std::
 	const cv::Size& arcFaceTargetSize);
 void CompareFaces(const FaceComparer& comparer, std::vector<Face>& faces, const std::map<std::string, FaceIndex>& database,
 	const int indexSize, const float comparisonThreshold);
+void FillAttributes(GenderAgeAnalyzer& analyzer, std::vector<Face>& faces);
 void RetinaFacePerformanceTest(const cv::Mat& image, RetinaFaceDetector& detector, const float detectionThreshold,
 	const float overlapThreshold);
 void NormalizationPerformanceTest(const cv::Mat& image, const ArcFaceNormalizer& normalizer, const std::vector<Face>& faces);
@@ -38,13 +40,14 @@ int main(int argc, char* argv[])
 	std::cout << "image name: " << imageFilepath << std::endl;
 	std::cout << std::endl;
 #else
-	std::string imageFilepath = "images/many.jpg";
+	std::string imageFilepath = "images/sh.jpg";
 #endif
 
 	const int indexSize = 512;
 	const std::string databasePath("database");
-	const std::string detectorModelFilepath("det_10g.onnx");
-	const std::string indexerModelFilepath("w600k_r50.onnx");
+	const std::string detectorModelFilepath("models/det_10g.onnx");
+	const std::string indexerModelFilepath("models/w600k_r50.onnx");
+	const std::string genderAgeModelFilepath("models/genderage.onnx");
 	const cv::Size arcFaceTargetSize(112, 112);
 	const float detectionThreshold = 0.5f;
 	const float overlapThreshold = 0.4f;
@@ -64,6 +67,9 @@ int main(int argc, char* argv[])
 
 	ArcFace50Indexer indexer(env, indexerModelFilepath);
 	IndexFaces(indexer, faces, normalizedFaces, arcFaceTargetSize);
+
+	GenderAgeAnalyzer genderAgeAnalyzer(env, genderAgeModelFilepath);
+	FillAttributes(genderAgeAnalyzer, faces);
 
 	FaceComparer comparer;
 	CompareFaces(comparer, faces, database, indexSize, comparisonThreshold);
@@ -333,10 +339,8 @@ void IndexFaces(ArcFace50Indexer& indexer, std::vector<Face>& faces, const std::
 		cv::Mat scaledNormImage;
 		cv::resize(normalizedFaces[i], scaledNormImage, arcFaceTargetSize);
 		faces[i].normImage = scaledNormImage;
+		faces[i].index = indexer.GetIndex(scaledNormImage);
 	}
-
-	for (int i = 0; i < faces.size(); i++)
-		faces[i].index = indexer.GetIndex(faces[i].normImage);
 }
 
 void CompareFaces(const FaceComparer& comparer, std::vector<Face>& faces, const std::map<std::string, FaceIndex>& database,
@@ -371,5 +375,15 @@ void CompareFaces(const FaceComparer& comparer, std::vector<Face>& faces, const 
 			faces[i].label = maxSimilarName;
 			faces[i].similarity = maxSimilarity;
 		}
+	}
+}
+
+void FillAttributes(GenderAgeAnalyzer& analyzer, std::vector<Face>& faces)
+{
+	for (int i = 0; i < faces.size(); i++)
+	{
+		const GenderAgeAttributes& attributes = analyzer.GetAttributes(faces[i].normImage);
+		faces[i].gender = attributes.first;
+		faces[i].age = attributes.second;
 	}
 }

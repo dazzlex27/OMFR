@@ -38,7 +38,7 @@ public:
 
 	inline static void DrawFaces(cv::Mat& image, const std::vector<Face>& faces)
 	{
-		for (Face face : faces)
+		for (const Face& face : faces)
 		{
 			const int boxAbsX = std::round(face.box.x * image.cols);
 			const int boxAbsY = std::round(face.box.y * image.rows);
@@ -47,7 +47,9 @@ public:
 
 			const cv::Rect absBox(boxAbsX, boxAbsY, boxAbsWidth, boxAbsHeight);
 			cv::rectangle(image, absBox, cv::Scalar(0, 0, 255), 2);
-			cv::putText(image, face.label, cv::Point(absBox.x, absBox.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
+			cv::Scalar ageColor = face.gender == Gender::Male ? cv::Scalar(255, 0, 0) : cv::Scalar(255, 105, 180);
+			cv::putText(image, std::to_string(face.age), cv::Point(absBox.x, absBox.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, ageColor, 2);
+			cv::putText(image, face.label, cv::Point(absBox.x + 30, absBox.y - 10), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
 			for (int i = 0; i < face.landmarks.size(); i++)
 			{
 				const int lmAbsX = std::round(boxAbsX + face.landmarks[i].x * boxAbsWidth);

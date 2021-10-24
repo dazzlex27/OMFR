@@ -7,7 +7,7 @@ class ArcFace50Indexer
 {
 private:
 	Ort::Session _session;
-	cv::Size _inputSize;
+	const cv::Size _inputSize = cv::Size(112, 112);
 	const int _inputDepth = 3;
 
 public:

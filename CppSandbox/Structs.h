@@ -3,8 +3,16 @@
 #include <vector>
 #include "CvInclude.h"
 
+enum Gender
+{
+	Unknown = 0,
+	Male = 1,
+	Female = 2
+};
+
 typedef std::vector<std::vector<float>> Anchor;
 typedef std::vector<float> FaceIndex;
+typedef std::pair<Gender, int> GenderAgeAttributes;
 
 struct FaceDetectionResult
 {
@@ -22,6 +30,8 @@ struct Face
 	FaceIndex index;
 	std::string label;
 	float similarity;
+	Gender gender;
+	int age;
 };
 
 struct AnchorKey
